@@ -1,5 +1,7 @@
 provider "azurerm" {
   features {}
+
+  use_cli = true
 }
 
 resource "azurerm_resource_group" "rg" {
@@ -34,7 +36,7 @@ resource "azurerm_network_security_group" "nsg" {
     protocol                   = "Tcp"
     source_port_range          = "*"
     destination_port_range     = "22"
-    source_address_prefix      = var.allowed_ip
+    source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
 }
@@ -44,7 +46,7 @@ resource "azurerm_public_ip" "pip" {
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
   allocation_method   = "Static"
-  sku                 = "Basic"
+  sku                 = "Standard"
 }
 
 resource "azurerm_network_interface" "nic" {
@@ -58,9 +60,13 @@ resource "azurerm_network_interface" "nic" {
     private_ip_address_allocation = "Dynamic"
     public_ip_address_id          = azurerm_public_ip.pip.id
   }
+}
 
+resource "azurerm_network_interface_security_group_association" "nic_nsg" {
+  network_interface_id      = azurerm_network_interface.nic.id
   network_security_group_id = azurerm_network_security_group.nsg.id
 }
+
 
 resource "azurerm_linux_virtual_machine" "vm" {
   name                = "vm-free"
@@ -77,12 +83,13 @@ resource "azurerm_linux_virtual_machine" "vm" {
 
   disable_password_authentication = true
 
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "20_04-lts"
-    version   = "latest"
-  }
+source_image_reference {
+  publisher = "Canonical"
+  offer     = "0001-com-ubuntu-server-focal"
+  sku       = "20_04-lts-gen2"
+  version   = "latest"
+}
+
 
   os_disk {
     caching              = "ReadWrite"
