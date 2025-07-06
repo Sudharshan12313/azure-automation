@@ -1,0 +1,5 @@
+resource_group_name = "rg-free-tier"
+location            = "East US"
+admin_username      = "azureuser"
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+allowed_ip          = "YOUR_PUBLIC_IP/32"
