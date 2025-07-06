@@ -1,12 +1,76 @@
-- name: Configure Azure VM
+- name: Provision Azure VM with multiple packages
   hosts: all
   become: true
   tasks:
+
     - name: Update apt cache
       apt:
         update_cache: yes
 
-    - name: Install nginx
+    - name: Install Nginx
       apt:
         name: nginx
         state: present
+
+    - name: Ensure Nginx is running
+      systemd:
+        name: nginx
+        state: started
+        enabled: yes
+
+    - name: Check Nginx status
+      shell: systemctl is-active nginx
+      register: nginx_status
+      changed_when: false
+
+    - name: Print Nginx status
+      debug:
+        msg: "Nginx is {{ nginx_status.stdout }}"
+
+    - name: Install Git
+      apt:
+        name: git
+        state: present
+
+    - name: Check Git version
+      command: git --version
+      register: git_version
+      changed_when: false
+
+    - name: Print Git version
+      debug:
+        msg: "Git version: {{ git_version.stdout }}"
+
+    - name: Install Python3
+      apt:
+        name: python3
+        state: present
+
+    - name: Check Python version
+      command: python3 --version
+      register: python_version
+      changed_when: false
+
+    - name: Print Python version
+      debug:
+        msg: "Python version: {{ python_version.stdout }}"
+
+    - name: Install Docker
+      apt:
+        name: docker.io
+        state: present
+
+    - name: Ensure Docker is running
+      systemd:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Check Docker status
+      shell: systemctl is-active docker
+      register: docker_status
+      changed_when: false
+
+    - name: Print Docker status
+      debug:
+        msg: "Docker is {{ docker_status.stdout }}"
