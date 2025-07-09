@@ -1,59 +1,82 @@
-name: Deploy Azure VM with Ansible
+name: Terraform + Ansible Provisioning
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
 
 jobs:
-  terraform-ansible:
+  terraform:
+    name: Provision Azure VMs
     runs-on: ubuntu-latest
 
     env:
+      TF_VAR_admin_username: azureuser
       TF_VAR_ssh_public_key_path: ./id_rsa.pub
+      TF_VAR_admin_password: ${{ secrets.WINDOWS_PASSWORD }}  # Windows VM password
 
     steps:
     - name: Checkout Code
       uses: actions/checkout@v3
 
-    - name: Set up Terraform
-      uses: hashicorp/setup-terraform@v3
-
-    - name: Install Ansible
-      run: |
-        sudo apt update
-        sudo apt install -y python3-pip jq
-        pip3 install ansible
-
-    - name: Generate SSH Key
+    - name: Generate SSH Key Pair
       run: |
         ssh-keygen -t rsa -b 4096 -f id_rsa -N ""
-        echo "SSH_PRIVATE_KEY<<EOF" >> $GITHUB_ENV
-        cat id_rsa >> $GITHUB_ENV
-        echo "EOF" >> $GITHUB_ENV
+        echo "SSH_KEY_PATH=./id_rsa" >> $GITHUB_ENV
 
-    - name: Terraform Init
-      working-directory: terraform
-      run: terraform init
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
 
-    - name: Terraform Apply
-      working-directory: terraform
-      run: terraform apply -auto-approve
-
-    - name: Get Public IP
-      id: tfoutput
+    - name: Terraform Init and Apply
       working-directory: terraform
       run: |
-        terraform output -raw public_ip > ../ansible/vm_ip.txt
+        terraform init
+        terraform apply -auto-approve
 
-    - name: Generate Ansible Inventory (Single VM)
+    - name: Output Terraform Results
+      working-directory: terraform
+      run: terraform output -json > ../terraform_output.json
+
+    - name: Upload Inventory + SSH Key
+      uses: actions/upload-artifact@v4
+      with:
+        name: ansible-data
+        path: |
+          terraform_output.json
+          id_rsa
+
+  ansible:
+    name: Configure with Ansible
+    runs-on: [self-hosted, ansible]  # Self-hosted runner label inside VNet
+    needs: terraform
+
+    env:
+      LINUX_USER: azureuser
+      WIN_USER: azureuser
+      WIN_PASS: ${{ secrets.WINDOWS_PASSWORD }}
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Download Terraform Output & Key
+      uses: actions/download-artifact@v4
+      with:
+        name: ansible-data
+
+    - name: Set SSH Key Path
+      run: echo "SSH_KEY_PATH=./id_rsa" >> $GITHUB_ENV
+
+    - name: Generate Ansible Inventory
+      run: python3 ansible/generate_inventory.py > inventory.json
+
+    - name: Install Ansible & WinRM
       run: |
-        echo "[all]" > ansible/inventory
-        echo "$(cat ansible/vm_ip.txt) ansible_user=azureuser ansible_ssh_private_key_file=./id_rsa" >> ansible/inventory
+        sudo apt update
+        sudo apt install -y python3-pip
+        pip3 install ansible pywinrm
+
+    - name: Set SSH Key Permissions
+      run: chmod 600 id_rsa
 
     - name: Run Ansible Playbook
-      working-directory: ansible
-      run: |
-        echo "$SSH_PRIVATE_KEY" > id_rsa
-        chmod 600 id_rsa
-        ansible-playbook -i inventory playbook.yml
+      run: ansible-playbook -i inventory.json ansible/playbook.yml

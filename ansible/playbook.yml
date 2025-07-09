@@ -1,76 +1,40 @@
-- name: Provision Azure VM with multiple packages
-  hosts: all
-  become: true
+---
+- name: Configure Linux VMs
+  hosts: linux
+  become: yes
   tasks:
-
-    - name: Update apt cache
+    - name: Ensure NGINX is installed on Ubuntu
       apt:
+        name: nginx
+        state: present
         update_cache: yes
+      when: ansible_distribution == "Ubuntu"
 
-    - name: Install Nginx
-      apt:
-        name: nginx
+    - name: Ensure HTTPD is installed on CentOS
+      yum:
+        name: httpd
         state: present
+      when: ansible_distribution == "CentOS"
 
-    - name: Ensure Nginx is running
-      systemd:
-        name: nginx
-        state: started
-        enabled: yes
-
-    - name: Check Nginx status
-      shell: systemctl is-active nginx
-      register: nginx_status
-      changed_when: false
-
-    - name: Print Nginx status
+    - name: Print OS family and IP
       debug:
-        msg: "Nginx is {{ nginx_status.stdout }}"
+        msg: "This is a Linux machine: {{ ansible_distribution }} at {{ ansible_host }}"
 
-    - name: Install Git
-      apt:
-        name: git
-        state: present
+---
 
-    - name: Check Git version
-      command: git --version
-      register: git_version
-      changed_when: false
+- name: Configure Windows VMs
+  hosts: windows
+  gather_facts: no
+  tasks:
+    - name: Create Temp directory
+      win_file:
+        path: C:\Temp
+        state: directory
 
-    - name: Print Git version
+    - name: Print confirmation
+      win_command: hostname
+      register: result
+
+    - name: Show hostname
       debug:
-        msg: "Git version: {{ git_version.stdout }}"
-
-    - name: Install Python3
-      apt:
-        name: python3
-        state: present
-
-    - name: Check Python version
-      command: python3 --version
-      register: python_version
-      changed_when: false
-
-    - name: Print Python version
-      debug:
-        msg: "Python version: {{ python_version.stdout }}"
-
-    - name: Install Docker
-      apt:
-        name: docker.io
-        state: present
-
-    - name: Ensure Docker is running
-      systemd:
-        name: docker
-        state: started
-        enabled: yes
-
-    - name: Check Docker status
-      shell: systemctl is-active docker
-      register: docker_status
-      changed_when: false
-
-    - name: Print Docker status
-      debug:
-        msg: "Docker is {{ docker_status.stdout }}"
+        msg: "Windows hostname is {{ result.stdout }}"
