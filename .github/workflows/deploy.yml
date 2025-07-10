@@ -1,82 +1,39 @@
-name: Terraform + Ansible Provisioning
+name: Terraform Outputs + Ansible Provision
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  terraform:
-    name: Provision Azure VMs
-    runs-on: ubuntu-latest
-
+  provision-and-ansible:
+    name: "Run Ansible on Self-hosted Runner"
+    runs-on: [self-hosted, ansible]
     env:
-      TF_VAR_admin_username: azureuser
-      TF_VAR_ssh_public_key_path: ./id_rsa.pub
-      TF_VAR_admin_password: ${{ secrets.WINDOWS_PASSWORD }}  # Windows VM password
-
-    steps:
-    - name: Checkout Code
-      uses: actions/checkout@v3
-
-    - name: Generate SSH Key Pair
-      run: |
-        ssh-keygen -t rsa -b 4096 -f id_rsa -N ""
-        echo "SSH_KEY_PATH=./id_rsa" >> $GITHUB_ENV
-
-    - name: Setup Terraform
-      uses: hashicorp/setup-terraform@v3
-
-    - name: Terraform Init and Apply
-      working-directory: terraform
-      run: |
-        terraform init
-        terraform apply -auto-approve
-
-    - name: Output Terraform Results
-      working-directory: terraform
-      run: terraform output -json > ../terraform_output.json
-
-    - name: Upload Inventory + SSH Key
-      uses: actions/upload-artifact@v4
-      with:
-        name: ansible-data
-        path: |
-          terraform_output.json
-          id_rsa
-
-  ansible:
-    name: Configure with Ansible
-    runs-on: [self-hosted, ansible]  # Self-hosted runner label inside VNet
-    needs: terraform
-
-    env:
+      SSH_KEY_PATH: ~/.ssh/id_rsa
       LINUX_USER: azureuser
       WIN_USER: azureuser
-      WIN_PASS: ${{ secrets.WINDOWS_PASSWORD }}
+      WIN_PASS: ${{ secrets.WIN_PASS }}
 
     steps:
-    - name: Checkout Code
+    - name: Checkout Repo
       uses: actions/checkout@v3
 
-    - name: Download Terraform Output & Key
-      uses: actions/download-artifact@v4
-      with:
-        name: ansible-data
-
-    - name: Set SSH Key Path
-      run: echo "SSH_KEY_PATH=./id_rsa" >> $GITHUB_ENV
-
-    - name: Generate Ansible Inventory
-      run: python3 ansible/generate_inventory.py > inventory.json
-
-    - name: Install Ansible & WinRM
+    - name: Fetch Terraform Outputs
+      env:
+        TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
+        TFC_WORKSPACE_ID: ${{ secrets.TFC_WORKSPACE_ID }}
       run: |
-        sudo apt update
-        sudo apt install -y python3-pip
-        pip3 install ansible pywinrm
+        curl -s \
+          -H "Authorization: Bearer $TFC_TOKEN" \
+          https://app.terraform.io/api/v2/workspaces/$TFC_WORKSPACE_ID/current-state-version/output-values \
+          > ansible/terraform_output.json
 
-    - name: Set SSH Key Permissions
-      run: chmod 600 id_rsa
+    - name: Generate Dynamic Inventory
+      working-directory: ansible
+      run: |
+        chmod +x generate_inventory.py
+        ./generate_inventory.py > inventory.json
 
     - name: Run Ansible Playbook
-      run: ansible-playbook -i inventory.json ansible/playbook.yml
+      working-directory: ansible
+      run: |
+        ansible-playbook -i inventory.json playbook.yml
