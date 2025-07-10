@@ -17,6 +17,10 @@ with open(TF_OUTPUT_FILE, "r") as f:
 linux_ips = tf_output.get("linux_vm_ips", {}).get("value", [])
 windows_ips = tf_output.get("windows_vm_ips", {}).get("value", [])
 
+# Convert list of IPs to dict format for Ansible
+def ip_list_to_host_dict(ip_list):
+    return {ip: {} for ip in ip_list}
+
 # Load environment variables or use defaults
 ssh_key = os.getenv("SSH_KEY_PATH", os.path.expanduser("~/.ssh/id_rsa"))
 linux_user = os.getenv("LINUX_USER", "azureuser")
@@ -26,10 +30,13 @@ win_pass = os.getenv("WIN_PASS", "ChangeThis123!")  # Store securely in CI
 # Construct dynamic inventory structure
 inventory = {
     "all": {
-        "children": ["linux", "windows"]
+        "children": {
+            "linux": {},
+            "windows": {}
+        }
     },
     "linux": {
-        "hosts": linux_ips,
+        "hosts": ip_list_to_host_dict(linux_ips),
         "vars": {
             "ansible_user": linux_user,
             "ansible_ssh_private_key_file": ssh_key,
@@ -38,7 +45,7 @@ inventory = {
         }
     },
     "windows": {
-        "hosts": windows_ips,
+        "hosts": ip_list_to_host_dict(windows_ips),
         "vars": {
             "ansible_user": win_user,
             "ansible_password": win_pass,
@@ -53,5 +60,5 @@ inventory = {
     }
 }
 
-# Print inventory JSON to stdout (used by Ansible)
+# Print inventory JSON to stdout
 print(json.dumps(inventory, indent=2))
