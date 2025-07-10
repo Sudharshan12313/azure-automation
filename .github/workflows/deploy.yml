@@ -1,6 +1,8 @@
 name: Terraform Outputs + Ansible Provision
+name: Terraform Outputs + Ansible Provision
 
 on:
+  workflow_dispatch:
   workflow_dispatch:
 
 jobs:
@@ -9,13 +11,25 @@ jobs:
     runs-on: [self-hosted, ansible]
     env:
       SSH_KEY_PATH: ~/.ssh/id_rsa
+  provision-and-ansible:
+    name: "Run Ansible on Self-hosted Runner"
+    runs-on: [self-hosted, ansible]
+    env:
+      SSH_KEY_PATH: ~/.ssh/id_rsa
       LINUX_USER: azureuser
       WIN_USER: azureuser
+      WIN_PASS: ${{ secrets.WIN_PASS }}
       WIN_PASS: ${{ secrets.WIN_PASS }}
 
     steps:
     - name: Checkout Repo
+    - name: Checkout Repo
       uses: actions/checkout@v3
+
+    - name: Install Python Requirements (optional)
+      run: |
+        pip3 install --upgrade pip
+        pip3 install ansible
 
     - name: Fetch Terraform Outputs
       env:
@@ -29,11 +43,18 @@ jobs:
 
     - name: Generate Dynamic Inventory
       working-directory: ansible
+    - name: Generate Dynamic Inventory
+      working-directory: ansible
       run: |
+        chmod +x generate_inventory.py
+        ./generate_inventory.py > inventory.json
         chmod +x generate_inventory.py
         ./generate_inventory.py > inventory.json
 
     - name: Run Ansible Playbook
+      working-directory: ansible
+      run: |
+        ansible-playbook -i inventory.json playbook.yml
       working-directory: ansible
       run: |
         ansible-playbook -i inventory.json playbook.yml

@@ -1,0 +1,24 @@
+---
+- name: Configure Linux VMs
+  hosts: linux
+  become: yes
+  gather_facts: yes
+  tasks:
+    - name: Install NGINX on Ubuntu
+      apt:
+        name: nginx
+        state: present
+        update_cache: yes
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Install HTTPD on CentOS
+      yum:
+        name: httpd
+        state: present
+      when: ansible_distribution == "CentOS"
+
+    - name: Print Linux IP
+      debug:
+        msg: "Linux machine {{ ansible_hostname }} with IP {{ ansible_host }}"
+
+

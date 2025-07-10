@@ -1,54 +1,122 @@
-# Azure Auth
-variable "subscription_id" {}
-variable "location" {}
-variable "resource_group_name" {}
+# Azure Authentication
+variable "subscription_id" {
+  description = "Azure Subscription ID"
+  type        = string
+}
+
+variable "location" {
+  description = "Azure region"
+  type        = string
+}
+
+variable "resource_group_name" {
+  description = "Name of the resource group"
+  type        = string
+}
 
 # Networking
-variable "vnet_name" {}
+variable "vnet_name" {
+  description = "Name of the Virtual Network"
+  type        = string
+}
+
 variable "vnet_address_space" {
-  type = list(string)
+  description = "Address space for the virtual network"
+  type        = list(string)
 }
-variable "private_subnet_name" {}
+
+variable "private_subnet_name" {
+  description = "Name of the private subnet"
+  type        = string
+}
+
 variable "private_subnet_prefix" {
-  type = list(string)
+  description = "CIDR prefix for the private subnet"
+  type        = list(string)
 }
 
-# NSG
-variable "nsg_name" {}
-variable "ssh_rule_priority" {}
-variable "allowed_ssh_source" {}
+variable "public_subnet_name" {
+  description = "Name of the public subnet"
+  type        = string
+}
 
-# Common VM credentials
-variable "admin_username" {}
-variable "admin_password" {}
-variable "ssh_public_key_path" {}
+variable "public_subnet_prefix" {
+  description = "CIDR prefix for the public subnet"
+  type        = list(string)
+}
 
-# Ubuntu VM
-variable "ubuntu_vm_name" {}
-variable "ubuntu_nic_name" {}
-variable "ubuntu_vm_size" {}
-variable "ubuntu_disk_type" {}
-variable "ubuntu_image_publisher" {}
-variable "ubuntu_image_offer" {}
-variable "ubuntu_image_sku" {}
-variable "ubuntu_image_version" {}
+# NSG Rules
+variable "nsg_name" {
+  description = "Name of the Network Security Group"
+  type        = string
+}
 
-# CentOS VM
-variable "centos_vm_name" {}
-variable "centos_nic_name" {}
-variable "centos_vm_size" {}
-variable "centos_disk_type" {}
-variable "centos_image_publisher" {}
-variable "centos_image_offer" {}
-variable "centos_image_sku" {}
-variable "centos_image_version" {}
+variable "ssh_rule_priority" {
+  description = "Priority for SSH rule"
+  type        = number
+}
 
-# Windows VM
-variable "windows_vm_name" {}
-variable "windows_nic_name" {}
-variable "windows_vm_size" {}
-variable "windows_disk_type" {}
-variable "windows_image_publisher" {}
-variable "windows_image_offer" {}
-variable "windows_image_sku" {}
-variable "windows_image_version" {}
+variable "winrm_rule_priority" {
+  description = "Priority for WinRM rule"
+  type        = number
+}
+
+variable "allowed_ssh_source" {
+  description = "CIDR to allow SSH from"
+  type        = string
+}
+
+variable "allowed_winrm_source" {
+  description = "CIDR to allow WinRM from"
+  type        = string
+}
+
+variable "security_rules" {
+  description = "List of custom NSG rules"
+  type = list(object({
+    name                       = string
+    priority                   = number
+    direction                  = string
+    access                     = string
+    protocol                   = string
+    source_port_range          = string
+    destination_port_range     = string
+    source_address_prefix      = string
+    destination_address_prefix = string
+  }))
+}
+
+# Admin Access
+variable "admin_username" {
+  description = "Admin username for the VMs"
+  type        = string
+}
+
+variable "admin_password" {
+  description = "Admin password for Windows VMs"
+  type        = string
+  sensitive   = true
+}
+
+variable "ssh_public_key_path" {
+  description = "Path to SSH public key file"
+  type        = string
+}
+
+# VM List
+variable "vms" {
+  description = "List of VMs to deploy"
+  type = list(object({
+    name       = string
+    os         = string           # "linux" or "windows"
+    vm_size    = string
+    disk_type  = string
+    public     = bool             # Whether VM needs public IP
+    image = object({
+      publisher = string
+      offer     = string
+      sku       = string
+      version   = string
+    })
+  }))
+}

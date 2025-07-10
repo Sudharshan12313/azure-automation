@@ -1,0 +1,17 @@
+---
+- name: Configure Windows VMs
+  hosts: windows
+  gather_facts: no
+  tasks:
+    - name: Create Temp directory
+      win_file:
+        path: C:\Temp
+        state: directory
+
+    - name: Print hostname
+      win_command: hostname
+      register: result
+
+    - name: Show hostname
+      debug:
+        msg: "Windows hostname is {{ result.stdout }}"
