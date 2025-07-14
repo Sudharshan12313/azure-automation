@@ -76,15 +76,18 @@ resource "azurerm_public_ip" "pip" {
 }
 
 resource "azurerm_linux_virtual_machine" "linux_vm" {
-  for_each = { for vm in var.vms : vm.name => vm if vm.os == "linux" }
+  count = length([for vm in var.vms : vm if vm.os == "linux"])
 
-  name                = each.value.name
+  name                = [for vm in var.vms : vm if vm.os == "linux"][count.index].name
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-  size                = each.value.vm_size
+  size                = [for vm in var.vms : vm if vm.os == "linux"][count.index].vm_size
   admin_username      = var.admin_username
-  network_interface_ids = [azurerm_network_interface.nic[each.key].id]
 
+  network_interface_ids = [
+    azurerm_network_interface.nic[
+[for vm in var.vms : vm if vm.os == "linux"][count.index].name].id
+  ]
   disable_password_authentication = true
 
   admin_ssh_key {
@@ -93,49 +96,56 @@ resource "azurerm_linux_virtual_machine" "linux_vm" {
   }
 
   source_image_reference {
-    publisher = each.value.image.publisher
-    offer     = each.value.image.offer
-    sku       = each.value.image.sku
-    version   = each.value.image.version
+    publisher = [for vm in var.vms : vm if vm.os == "linux"][count.index].image.publisher
+    offer     = [for vm in var.vms : vm if vm.os == "linux"][count.index].image.offer
+    sku       = [for vm in var.vms : vm if vm.os == "linux"][count.index].image.sku
+    version   = [for vm in var.vms : vm if vm.os == "linux"][count.index].image.version
   }
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = each.value.disk_type
+    storage_account_type = [for vm in var.vms : vm if vm.os == "linux"][count.index].disk_type
   }
 }
 
-resource "azurerm_windows_virtual_machine" "windows_vm" {
-  for_each = { for vm in var.vms : vm.name => vm if vm.os == "windows" }
 
-  name                = each.value.name
+resource "azurerm_windows_virtual_machine" "windows_vm" {
+  count = length([for vm in var.vms : vm if vm.os == "windows"])
+
+  name                = [for vm in var.vms : vm if vm.os == "windows"][count.index].name
   location            = var.location
   resource_group_name = azurerm_resource_group.rg.name
-  size                = each.value.vm_size
+  size                = [for vm in var.vms : vm if vm.os == "windows"][count.index].vm_size
   admin_username      = var.admin_username
   admin_password      = var.admin_password
-  network_interface_ids = [azurerm_network_interface.nic[each.key].id]
+
+  network_interface_ids = [
+    azurerm_network_interface.nic[
+  [for vm in var.vms : vm if vm.os == "windows"][count.index].name].id
+  ]
 
   source_image_reference {
-    publisher = each.value.image.publisher
-    offer     = each.value.image.offer
-    sku       = each.value.image.sku
-    version   = each.value.image.version
+    publisher = [for vm in var.vms : vm if vm.os == "windows"][count.index].image.publisher
+    offer     = [for vm in var.vms : vm if vm.os == "windows"][count.index].image.offer
+    sku       = [for vm in var.vms : vm if vm.os == "windows"][count.index].image.sku
+    version   = [for vm in var.vms : vm if vm.os == "windows"][count.index].image.version
   }
 
   os_disk {
     caching              = "ReadWrite"
-    storage_account_type = each.value.disk_type
+    storage_account_type = [for vm in var.vms : vm if vm.os == "windows"][count.index].disk_type
   }
 
   license_type = "Windows_Client"
 }
 
-resource "azurerm_virtual_machine_extension" "winrm" {
-  for_each = { for vm in var.vms : vm.name => vm if vm.os == "windows" }
 
-  name                 = "enable-winrm-${each.key}"
-  virtual_machine_id   = azurerm_windows_virtual_machine.windows_vm[each.key].id
+
+resource "azurerm_virtual_machine_extension" "winrm" {
+  count = length([for vm in var.vms : vm if vm.os == "windows"])
+
+  name                 = "enable-winrm-${[for vm in var.vms : vm if vm.os == "windows"][count.index].name}"
+  virtual_machine_id   = azurerm_windows_virtual_machine.windows_vm[count.index].id
   publisher            = "Microsoft.Compute"
   type                 = "CustomScriptExtension"
   type_handler_version = "1.10"

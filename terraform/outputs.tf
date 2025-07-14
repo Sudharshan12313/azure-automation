@@ -16,11 +16,4 @@ output "windows_vm_ips" {
   ]
 }
 
-# Optional: Output all public IPs (for VMs that requested public IP)
-output "vm_public_ips" {
-  description = "Public IPs of VMs with public access"
-  value = {
-    for vm in var.vms : vm.name => try(azurerm_public_ip.pip[vm.name].ip_address, null)
-    if vm.public
-  }
-}
+
