@@ -3,11 +3,11 @@ resource_group_name       = "rg-private"
 location                  = "eastus"
 
 vnet_name                 = "vnet-private"
-vnet_address_space        = ["10.0.0.0/16"]
+vnet_address_space        = ["10.2.0.0/16"]
 private_subnet_name       = "subnet-private"
-private_subnet_prefix     = ["10.0.2.0/24"]
+private_subnet_prefix     = ["10.2.2.0/24"]
 public_subnet_name        = "public-subnet"
-public_subnet_prefix      = ["10.0.3.0/24"]
+public_subnet_prefix      = ["10.2.3.0/24"]
 
 nsg_name                  = "nsg-vm"
 ssh_rule_priority         = 1001
