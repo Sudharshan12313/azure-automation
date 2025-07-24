@@ -1,9 +1,59 @@
 ---
-- name: Configure Linux VMs
+- name: Configure and Patch Linux VMs
   hosts: linux
   become: yes
   gather_facts: yes
+
+  vars:
+    patch_result: ""
+
   tasks:
+    - name: Update APT packages (Ubuntu)
+      apt:
+        update_cache: yes
+        upgrade: dist
+      register: ubuntu_patch
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Set Ubuntu patch result
+      set_fact:
+        patch_result: "{{ ubuntu_patch }}"
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Update YUM packages (CentOS)
+      yum:
+        name: '*'
+        state: latest
+      register: centos_patch
+      when: ansible_distribution == "CentOS"
+
+    - name: Set CentOS patch result
+      set_fact:
+        patch_result: "{{ centos_patch }}"
+      when: ansible_distribution == "CentOS"
+
+    - name: Show patching summary
+      debug:
+        msg: |
+          OS: {{ ansible_distribution }}
+          Host: {{ ansible_hostname }}
+          Packages Changed: {{ patch_result.changed }}
+          Summary: {{ patch_result }}
+
+    # Optional: Reboot if required (Ubuntu)
+    - name: Check if reboot is required (Ubuntu)
+      stat:
+        path: /var/run/reboot-required
+      register: reboot_required
+      when: ansible_distribution == "Ubuntu"
+
+    - name: Reboot the server if required
+      reboot:
+        reboot_timeout: 300
+      when:
+        - ansible_distribution == "Ubuntu"
+        - reboot_required.stat.exists
+
     - name: Install NGINX on Ubuntu
       apt:
         name: nginx
@@ -17,8 +67,6 @@
         state: present
       when: ansible_distribution == "CentOS"
 
-    - name: Print Linux IP
+    - name: Print Linux Host and IP
       debug:
         msg: "Linux machine {{ ansible_hostname }} with IP {{ ansible_host }}"
-
-
