@@ -98,3 +98,6 @@ vms = [
     }
   }
 ]
+
+ansible_vnet_name = "vnet-ansible"
+ansible_vnet_rg   = "rg-ansible"
