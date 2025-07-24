@@ -120,3 +120,14 @@ variable "vms" {
     })
   }))
 }
+
+# For Peering: Remote (Ansible) VNet Info
+variable "ansible_vnet_name" {
+  description = "Name of the Ansible VNet to peer with"
+  type        = string
+}
+
+variable "ansible_vnet_rg" {
+  description = "Resource Group of the Ansible VNet"
+  type        = string
+}
