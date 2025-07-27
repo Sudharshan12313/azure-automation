@@ -23,28 +23,50 @@ jobs:
         ansible --version
         python3 --version
 
-    - name: Fetch Terraform Outputs from TFC
+    - name: Fetch Latest Applied Terraform Outputs
       env:
         TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
         TFC_WORKSPACE_ID: ${{ secrets.TFC_WORKSPACE_ID }}
       run: |
-        curl -s \
-          -H "Authorization: Bearer $TFC_TOKEN" \
-          https://app.terraform.io/api/v2/workspaces/$TFC_WORKSPACE_ID/current-state-version/output-values \
-          > ansible/terraform_output.json
+        echo "Fetching latest applied state version..."
+        AUTH_HEADER="Authorization: Bearer $TFC_TOKEN"
+        
+        # Fetch all runs, filter to last successful apply
+        RUNS_URL="https://app.terraform.io/api/v2/workspaces/$TFC_WORKSPACE_ID/runs"
+        STATE_ID=$(curl -s -H "$AUTH_HEADER" "$RUNS_URL" | \
+          jq -r '.data[] | select(.attributes.status == "applied") | .relationships["state-versions"].data.id' | head -n1)
+
+        if [[ -z "$STATE_ID" ]]; then
+          echo "No applied state found. Exiting..."
+          exit 1
+        fi
+
+        echo "Found state version ID: $STATE_ID"
+        
+        OUTPUT_URL="https://app.terraform.io/api/v2/state-versions/$STATE_ID/output-values"
+        echo "Fetching outputs from $OUTPUT_URL"
+        
+        curl -s -H "$AUTH_HEADER" "$OUTPUT_URL" -o ansible/terraform_output.json
+        
+        if [[ $? -eq 0 ]]; then
+          echo "Outputs written to ansible/terraform_output.json"
+        else
+          echo "Failed to fetch output values."
+          exit 1
+        fi
 
     - name: Generate Dynamic Inventory
       working-directory: ansible
       run: |
         chmod +x generate_inventory.py
-        ./generate_inventory.py > inventory.json
+        python3 generate_inventory.py 
 
     - name: Run Linux Playbook
       working-directory: ansible
       run: |
-        ansible-playbook -i inventory.json linux_playbook.yml
+        ansible-playbook -i Inventory.ini linux_playbook.yml 
 
     - name: Run Windows Playbook
       working-directory: ansible
       run: |
-        ansible-playbook -i inventory.json win_playbook.yml
+        ansible-playbook -i Inventory.ini win_playbook.yml
