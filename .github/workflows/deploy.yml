@@ -25,33 +25,33 @@ jobs:
 
     - name: Fetch Latest Applied Terraform Outputs
       env:
-        TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
-        TFC_WORKSPACE_ID: ${{ secrets.TFC_WORKSPACE_ID }}
+         TFC_TOKEN: ${{ secrets.TFC_TOKEN }}
+         TFC_WORKSPACE_ID: ${{ secrets.TFC_WORKSPACE_ID }}
       run: |
-        echo "Fetching latest applied state version..."
+        echo "Fetching current state version from Terraform Cloud..."
         AUTH_HEADER="Authorization: Bearer $TFC_TOKEN"
-        
-        # Fetch all runs, filter to last successful apply
-        RUNS_URL="https://app.terraform.io/api/v2/workspaces/$TFC_WORKSPACE_ID/runs"
-        STATE_ID=$(curl -s -H "$AUTH_HEADER" "$RUNS_URL" | \
-          jq -r '.data[] | select(.attributes.status == "applied") | .relationships["state-versions"].data.id' | head -n1)
 
-        if [[ -z "$STATE_ID" ]]; then
-          echo "No applied state found. Exiting..."
-          exit 1
+        # Get current state version ID directly
+        STATE_VERSION_URL="https://app.terraform.io/api/v2/workspaces/$TFC_WORKSPACE_ID/current-state-version"
+        STATE_ID=$(curl -s -H "$AUTH_HEADER" "$STATE_VERSION_URL" | jq -r '.data.id')
+
+        if [[ -z "$STATE_ID" || "$STATE_ID" == "null" ]]; then
+           echo "No current state version found. Exiting..."
+           exit 1
         fi
 
         echo "Found state version ID: $STATE_ID"
-        
+
+        # Fetch output values
         OUTPUT_URL="https://app.terraform.io/api/v2/state-versions/$STATE_ID/output-values"
         echo "Fetching outputs from $OUTPUT_URL"
-        
+
         curl -s -H "$AUTH_HEADER" "$OUTPUT_URL" -o ansible/terraform_output.json
-        
+
         if [[ $? -eq 0 ]]; then
-          echo "Outputs written to ansible/terraform_output.json"
+          echo "✅ Outputs written to ansible/terraform_output.json"
         else
-          echo "Failed to fetch output values."
+          echo "❌ Failed to fetch output values."
           exit 1
         fi
 
