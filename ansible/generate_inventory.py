@@ -20,15 +20,18 @@ with open(TF_OUTPUT_FILE, "r") as f:
         print(f"ERROR: Failed to parse {TF_OUTPUT_FILE} - {str(e)}", file=sys.stderr)
         sys.exit(1)
 
+# Parse outputs into a dictionary
+outputs = {item["attributes"]["name"]: item["attributes"]["value"] for item in tf_output.get("data", [])}
+
 # Extract VM IPs
-linux_ips = tf_output.get("linux_vm_ips", {}).get("value", [])
-windows_ips = tf_output.get("windows_vm_ips", {}).get("value", [])
+linux_ips = outputs.get("linux_vm_ips", [])
+windows_ips = outputs.get("windows_vm_ips", [])
 
 # Environment variables (with fallbacks)
 ssh_key = os.getenv("SSH_KEY_PATH", os.path.expanduser("~/.ssh/id_rsa"))
-linux_user = os.getenv("LINUX_USER", "azureuser")
-win_user = os.getenv("WIN_USER", "azureuser")
-win_pass = os.getenv("WIN_PASS", "ChangeThis123!")  #Should come from secrets in CI/CD
+linux_user = os.getenv("LINUX_USER", "")
+win_user = os.getenv("WIN_USER", "")
+win_pass = os.getenv("WIN_PASS", "")
 
 # Build inventory content
 lines = []
@@ -57,4 +60,4 @@ if windows_ips:
 with open(INVENTORY_FILE, "w") as f:
     f.write("\n".join(lines) + "\n")
 
-print(f" Ansible inventory written to: {INVENTORY_FILE}")
+print(f"Ansible inventory written to: {INVENTORY_FILE}")
