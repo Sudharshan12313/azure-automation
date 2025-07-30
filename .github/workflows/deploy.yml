@@ -49,9 +49,9 @@ jobs:
         curl -s -H "$AUTH_HEADER" "$OUTPUT_URL" -o ansible/terraform_output.json
 
         if [[ $? -eq 0 ]]; then
-          echo "✅ Outputs written to ansible/terraform_output.json"
+          echo "Outputs written to ansible/terraform_output.json"
         else
-          echo "❌ Failed to fetch output values."
+          echo "Failed to fetch output values."
           exit 1
         fi
 
